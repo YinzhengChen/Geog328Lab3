@@ -2,78 +2,189 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Japan County Boundaries</title>
+  <title>Earthquake Data Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 引入 Mapbox GL CSS -->
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; font-family: Arial, sans-serif; }
-    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-    #side-panel {
-      position: absolute; top: 0; right: 0; width: 300px; height: 100%;
-      background-color: rgba(255,255,255,0.95); overflow-y: auto;
-      box-shadow: 2px 0 5px rgba(0,0,0,0.3); padding: 10px; z-index: 1;
+    /* 全局样式重置 */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
     }
-    @media (max-width: 1024px) { #side-panel { display: none; } }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
-    th { cursor: pointer; background-color: #f2f2f2; }
+    /* 地图容器铺满全屏 */
+    #map {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 100%;
+    }
+    /* 侧边栏：位于左侧，包含地图标题和数据表格 */
+    #side-panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 300px;
+      height: 100%;
+      background-color: rgba(255,255,255,0.95);
+      overflow-y: auto;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+      padding: 10px;
+      z-index: 1;
+    }
+    /* 当浏览器宽度小于1024px时隐藏侧边栏 */
+    @media (max-width: 1024px) {
+      #side-panel {
+        display: none;
+      }
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      cursor: pointer;
+      background-color: #f2f2f2;
+    }
   </style>
 </head>
 <body>
+  <!-- 地图容器 -->
   <div id="map"></div>
+
+  <!-- 侧边栏：包含标题与数据表格（显示地震数据） -->
   <div id="side-panel">
-    <h2>Japan Counties</h2>
+    <h2>Most recent 30 days earthquakes</h2>
     <table id="data-table">
       <thead>
-        <tr><th onclick="sortTable(0)">County</th><th onclick="sortTable(1)">Population</th></tr>
+        <tr>
+          <!-- 注意：这里使用 data-order 属性来存储当前排序方向 -->
+          <th onclick="sortTable(0)" data-order="asc">Location</th>
+          <th onclick="sortTable(1)" data-order="asc">Magnitude</th>
+        </tr>
       </thead>
-      <tbody></tbody>
+      <tbody>
+        <!-- 数据行将通过 JavaScript 动态填充 -->
+      </tbody>
     </table>
   </div>
+
+  <!-- 引入 Mapbox GL JS -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
   <script>
+    // 请替换为你自己的 Mapbox Access Token
     mapboxgl.accessToken = 'pk.eyJ1IjoieWluemhlbmdjaGVuIiwiYSI6ImNtMXFvcm9jNTAyYjEybW9tNGF2OWpiZ2wifQ.14G-PXphSbaM7jZ59Cohgw';
+
+    // 初始化地图，使用与 earthquake.html 不同的地图样式（此处选择 light-v10）
     const map = new mapboxgl.Map({
       container: 'map',
-      style: 'mapbox://styles/mapbox/light-v10', 
-      center: [139.6917, 35.6895], zoom: 5
+      style: 'mapbox://styles/mapbox/light-v10',
+      center: [139.6917, 35.6895], // 以日本东京为中心
+      zoom: 5
     });
 
+    // 加载地震数据（点数据）并添加到地图，同时填充侧边栏表格
+    fetch('assets/earthquakes.geojson')
+      .then(response => response.json())
+      .then(data => {
+        // 确保地图加载完成后再添加图层
+        map.on('load', function() {
+          map.addSource('earthquakes', {
+            type: 'geojson',
+            data: data
+          });
+          map.addLayer({
+            id: 'earthquakes-layer',
+            type: 'circle',
+            source: 'earthquakes',
+            paint: {
+              'circle-radius': 6,
+              'circle-color': '#007cbf'
+            }
+          });
+        });
+        // 假设 GeoJSON 中 properties 内含有 place（地点）和 mag（震级）属性
+        populateTable(data.features);
+      })
+      .catch(err => console.error('Error loading earthquakes data:', err));
+
+    // 加载日本地图数据（面数据）并添加到地图
     fetch('assets/japan.geojson')
       .then(response => response.json())
       .then(data => {
         map.on('load', function() {
-          map.addSource('japan', { type: 'geojson', data: data });
+          map.addSource('japan', {
+            type: 'geojson',
+            data: data
+          });
           map.addLayer({
             id: 'japan-layer',
             type: 'fill',
             source: 'japan',
-            paint: { 'fill-color': '#088', 'fill-opacity': 0.5, 'fill-outline-color': '#000' }
+            paint: {
+              'fill-color': '#088',
+              'fill-opacity': 0.4
+            }
           });
         });
-        populateTable(data.features);
       })
       .catch(err => console.error('Error loading Japan data:', err));
 
+    // 填充侧边栏表格数据：从 GeoJSON 的 features 中提取数据
     function populateTable(features) {
       const tbody = document.querySelector('#data-table tbody');
       features.forEach(feature => {
         const row = document.createElement('tr');
-        const county = feature.properties.name || 'Unknown';
-        const population = feature.properties.population || 'N/A';
-        row.innerHTML = `<td>${county}</td><td>${population}</td>`;
+        // 从属性中获取地点（place）和震级（mag），不存在时给默认值
+        const location = feature.properties.place || 'Unknown';
+        const magnitude = feature.properties.mag || 0;
+        const cellLocation = document.createElement('td');
+        cellLocation.textContent = location;
+        const cellMagnitude = document.createElement('td');
+        cellMagnitude.textContent = magnitude;
+        row.appendChild(cellLocation);
+        row.appendChild(cellMagnitude);
         tbody.appendChild(row);
       });
     }
 
+    // 表格排序函数：根据传入的列索引对表格数据进行排序
     function sortTable(columnIndex) {
       const tableBody = document.querySelector('#data-table tbody');
       const rows = Array.from(tableBody.querySelectorAll('tr'));
+
+      // 获取对应表头，并取出当前排序方向，然后切换方向
+      const header = document.querySelector(`#data-table thead tr th:nth-child(${columnIndex + 1})`);
+      let currentOrder = header.getAttribute('data-order') || 'asc';
+      const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+      header.setAttribute('data-order', newOrder);
+
+      // 判断是否为数值排序（这里设定第二列为数值型：震级）
+      const isNumeric = (columnIndex === 1);
+
+      // 按照指定列进行排序
       rows.sort((a, b) => {
         let aText = a.cells[columnIndex].textContent.trim();
         let bText = b.cells[columnIndex].textContent.trim();
-        return columnIndex === 1 ? parseFloat(aText) - parseFloat(bText) : aText.localeCompare(bText);
+        if (isNumeric) {
+          return newOrder === 'asc'
+            ? parseFloat(aText) - parseFloat(bText)
+            : parseFloat(bText) - parseFloat(aText);
+        } else {
+          if (aText < bText) return newOrder === 'asc' ? -1 : 1;
+          if (aText > bText) return newOrder === 'asc' ? 1 : -1;
+          return 0;
+        }
       });
+
+      // 重新将排序后的行添加到表格中
       rows.forEach(row => tableBody.appendChild(row));
     }
   </script>
