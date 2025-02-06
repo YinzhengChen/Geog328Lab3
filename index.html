@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Custom Geospatial Data Map</title>
+  <title>Custom Geospatial Data</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <style>
@@ -22,7 +22,7 @@
 <body>
   <div id="map"></div>
   <div id="side-panel">
-    <h2>Custom Data Table</h2>
+    <h2>Custom Dataset</h2>
     <table id="data-table">
       <thead>
         <tr><th onclick="sortTable(0)">Name</th><th onclick="sortTable(1)">Value</th></tr>
@@ -32,10 +32,10 @@
   </div>
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
   <script>
-    mapboxgl.accessToken = '你的 Mapbox Token';
+    mapboxgl.accessToken = 'pk.eyJ1IjoieWluemhlbmdjaGVuIiwiYSI6ImNtMXFvcm9jNTAyYjEybW9tNGF2OWpiZ2wifQ.14G-PXphSbaM7jZ59Cohgw';
     const map = new mapboxgl.Map({
       container: 'map',
-      style: 'mapbox://styles/mapbox/streets-v11', // 另一个样式
+      style: 'mapbox://styles/mapbox/light-v10', 
       center: [139.6917, 35.6895], zoom: 5
     });
 
@@ -45,35 +45,13 @@
         map.on('load', function() {
           map.addSource('customdata', { type: 'geojson', data: data });
           map.addLayer({
-            id: 'custom-layer', type: 'circle', source: 'customdata',
-            paint: { 'circle-radius': 6, 'circle-color': '#ff5733' }
+            id: 'custom-layer', type: 'fill', source: 'customdata',
+            paint: { 'fill-color': '#0088ff', 'fill-opacity': 0.5 }
           });
         });
         populateTable(data.features);
       })
       .catch(err => console.error('Error loading custom data:', err));
-
-    function populateTable(features) {
-      const tbody = document.querySelector('#data-table tbody');
-      features.forEach(feature => {
-        const row = document.createElement('tr');
-        const name = feature.properties.name || 'Unknown';
-        const value = feature.properties.value || 0;
-        row.innerHTML = `<td>${name}</td><td>${value}</td>`;
-        tbody.appendChild(row);
-      });
-    }
-
-    function sortTable(columnIndex) {
-      const tableBody = document.querySelector('#data-table tbody');
-      const rows = Array.from(tableBody.querySelectorAll('tr'));
-      rows.sort((a, b) => {
-        let aText = a.cells[columnIndex].textContent.trim();
-        let bText = b.cells[columnIndex].textContent.trim();
-        return columnIndex === 1 ? parseFloat(aText) - parseFloat(bText) : aText.localeCompare(bText);
-      });
-      rows.forEach(row => tableBody.appendChild(row));
-    }
   </script>
 </body>
 </html>
