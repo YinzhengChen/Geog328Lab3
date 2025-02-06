@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Earthquake Data Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; font-family: Arial, sans-serif; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    #side-panel {
+      position: absolute; top: 0; right: 0; width: 300px; height: 100%;
+      background-color: rgba(255,255,255,0.95); overflow-y: auto;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.3); padding: 10px; z-index: 1;
+    }
+    @media (max-width: 1024px) { #side-panel { display: none; } }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { cursor: pointer; background-color: #f2f2f2; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="side-panel">
+    <h2>Earthquake Data</h2>
+    <table id="data-table">
+      <thead>
+        <tr><th onclick="sortTable(0)">Location</th><th onclick="sortTable(1)">Magnitude</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <script>
+    mapboxgl.accessToken = '你的 Mapbox Token';
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/outdoors-v12', // 另一个样式
+      center: [139.6917, 35.6895], zoom: 5
+    });
+
+    fetch('assets/earthquakes.geojson')
+      .then(response => response.json())
+      .then(data => {
+        map.on('load', function() {
+          map.addSource('earthquakes', { type: 'geojson', data: data });
+          map.addLayer({
+            id: 'earthquake-layer', type: 'circle', source: 'earthquakes',
+            paint: { 'circle-radius': 6, 'circle-color': '#007cbf' }
+          });
+        });
+        populateTable(data.features);
+      })
+      .catch(err => console.error('Error loading earthquake data:', err));
+
+    function populateTable(features) {
+      const tbody = document.querySelector('#data-table tbody');
+      features.forEach(feature => {
+        const row = document.createElement('tr');
+        const location = feature.properties.place || 'Unknown';
+        const magnitude = feature.properties.mag || 0;
+        row.innerHTML = `<td>${location}</td><td>${magnitude}</td>`;
+        tbody.appendChild(row);
+      });
+    }
+
+    function sortTable(columnIndex) {
+      const tableBody = document.querySelector('#data-table tbody');
+      const rows = Array.from(tableBody.querySelectorAll('tr'));
+      rows.sort((a, b) => {
+        let aText = a.cells[columnIndex].textContent.trim();
+        let bText = b.cells[columnIndex].textContent.trim();
+        return columnIndex === 1 ? parseFloat(aText) - parseFloat(bText) : aText.localeCompare(bText);
+      });
+      rows.forEach(row => tableBody.appendChild(row));
+    }
+  </script>
+</body>
+</html>
