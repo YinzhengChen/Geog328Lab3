@@ -46,7 +46,7 @@
           map.addSource('customdata', { type: 'geojson', data: data });
           map.addLayer({
             id: 'custom-layer', type: 'fill', source: 'customdata',
-            paint: { 'fill-color': '#0088ff', 'fill-opacity': 0.5 }
+            paint: { 'fill-opacity': 0 } // 设置透明度为0，完全隐藏
           });
         });
         populateTable(data.features);
